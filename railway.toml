@@ -2,7 +2,7 @@
 name = "viajes-umb"
 
 [deploy]
-branch = "main"
+branch = "master"
 
 [build]
 command = "npm install"
