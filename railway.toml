@@ -1,0 +1,9 @@
+[project]
+name = "viajes-umb"
+
+[deploy]
+branch = "main"
+
+[build]
+command = "npm install"
+startCommand = "node index.js"

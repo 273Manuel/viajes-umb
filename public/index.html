@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Compartir Viajes UMB (Frontend)</title>
+  <style>
+    /* Mismos estilos que antes para simplicidad */
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f0f4f8; }
+    h1, h2 { color: #003366; }
+    form > div { margin-bottom: 10px; }
+    label { font-weight: bold; display: block; margin-bottom: 4px; }
+    input, textarea, button { width: 100%; padding: 8px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; }
+    button { background: #0055a5; color: white; border: none; cursor: pointer; font-size: 1em; }
+    button:hover { background: #003d75; }
+    .hidden { display: none; }
+    .viaje { background: #e6f0ff; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Compartir Viajes - Universidad Manuela Beltrán</h1>
+
+  <div id="userSection">
+    <p id="userInfo" class="hidden">Usuario: <span id="username"></span> <button id="logoutBtn">Cerrar sesión</button></p>
+
+    <button id="showLoginBtn">Iniciar sesión</button>
+    <button id="showRegisterBtn">Registrarse</button>
+  </div>
+
+  <section id="loginSection" class="hidden">
+    <h2>Iniciar sesión</h2>
+    <form id="loginForm">
+      <div>
+        <label for="loginCorreo">Correo:</label>
+        <input type="email" id="loginCorreo" required />
+      </div>
+      <div>
+        <label for="loginPassword">Contraseña:</label>
+        <input type="password" id="loginPassword" required />
+      </div>
+      <button type="submit">Entrar</button>
+    </form>
+  </section>
+
+  <section id="registerSection" class="hidden">
+    <h2>Registrarse</h2>
+    <form id="registerForm">
+      <div>
+        <label for="registerCorreo">Correo:</label>
+        <input type="email" id="registerCorreo" required />
+      </div>
+      <div>
+        <label for="registerPassword">Contraseña:</label>
+        <input type="password" id="registerPassword" required />
+      </div>
+      <button type="submit">Registrar</button>
+    </form>
+  </section>
+
+  <section id="viajeSection" class="hidden">
+    <h2>Publicar viaje</h2>
+    <form id="viajeForm">
+      <div>
+        <label for="origen">Origen:</label>
+        <input type="text" id="origen" required />
+      </div>
+      <div>
+        <label for="destino">Destino:</label>
+        <input type="text" id="destino" required />
+      </div>
+      <div>
+        <label for="fecha">Fecha:</label>
+        <input type="date" id="fecha" required />
+      </div>
+      <div>
+        <label for="pasajeros">Pasajeros disponibles:</label>
+        <input type="number" id="pasajeros" min="1" max="10" required />
+      </div>
+      <div>
+        <label for="comentarios">Comentarios:</label>
+        <textarea id="comentarios" rows="3"></textarea>
+      </div>
+      <button type="submit">Publicar</button>
+    </form>
+  </section>
+
+  <section id="listaViajesSection">
+    <h2>Viajes publicados</h2>
+    <div id="listaViajes">
+      <p>Cargando viajes...</p>
+    </div>
+  </section>
+
+<script>
+  const API_URL = 'https://viajes-umb.railway.app/api';
+
+  // Elementos
+  const userInfo = document.getElementById('userInfo');
+  const usernameSpan = document.getElementById('username');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const showLoginBtn = document.getElementById('showLoginBtn');
+  const showRegisterBtn = document.getElementById('showRegisterBtn');
+
+  const loginSection = document.getElementById('loginSection');
+  const registerSection = document.getElementById('registerSection');
+  const viajeSection = document.getElementById('viajeSection');
+  const listaViajesSection = document.getElementById('listaViajesSection');
+
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  const viajeForm = document.getElementById('viajeForm');
+  const listaViajesDiv = document.getElementById('listaViajes');
+
+  let token = null;
+
+  function mostrarSeccion(seccion) {
+    [loginSection, registerSection, viajeSection].forEach(s => s.classList.add('hidden'));
+    seccion.classList.remove('hidden');
+  }
+
+  function mostrarUserLogueado(correo) {
+    userInfo.classList.remove('hidden');
+    usernameSpan.textContent = correo;
+    showLoginBtn.style.display = 'none';
+    showRegisterBtn.style.display = 'none';
+    mostrarSeccion(viajeSection);
+    cargarViajes();
+  }
+
+  function ocultarUser() {
+    userInfo.classList.add('hidden');
+    usernameSpan.textContent = '';
+    showLoginBtn.style.display = 'inline-block';
+    showRegisterBtn.style.display = 'inline-block';
+    mostrarSeccion(loginSection);
+    cargarViajes();
+  }
+
+  // Eventos botones mostrar formularios
+  showLoginBtn.addEventListener('click', () => {
+    mostrarSeccion(loginSection);
+  });
+  showRegisterBtn.addEventListener('click', () => {
+    mostrarSeccion(registerSection);
+  });
+
+  // Logout
+  logoutBtn.addEventListener('click', () => {
+    token = null;
+    ocultarUser();
+  });
+
+  // Registro
+  registerForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const correo = document.getElementById('registerCorreo').value.trim();
+    const password = document.getElementById('registerPassword').value;
+
+    try {
+      const res = await fetch(API_URL + '/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correo, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error en registro');
+      alert('Registro exitoso, ahora inicia sesión');
+      registerForm.reset();
+      mostrarSeccion(loginSection);
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
+  });
+
+  // Login
+  loginForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const correo = document.getElementById('loginCorreo').value.trim();
+    const password = document.getElementById('loginPassword').value;
+
+    try {
+      const res = await fetch(API_URL + '/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correo, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error en login');
+
+      token = data.token;
+      mostrarUserLogueado(correo);
+      loginForm.reset();
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
+  });
+
+  // Publicar viaje
+  viajeForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!token) {
+      alert('Debes iniciar sesión primero');
+      mostrarSeccion(loginSection);
+      return;
+    }
+
+    const viaje = {
+      origen: document.getElementById('origen').value.trim(),
+      destino: document.getElementById('destino').value.trim(),
+      fecha: document.getElementById('fecha').value,
+      pasajeros: parseInt(document.getElementById('pasajeros').value),
+      comentarios: document.getElementById('comentarios').value.trim()
+    };
+
+    try {
+      const res = await fetch(API_URL + '/viajes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(viaje)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al publicar viaje');
+
+      alert('Viaje publicado con éxito');
+      viajeForm.reset();
+      cargarViajes();
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
+  });
+
+  // Cargar viajes
+  async function cargarViajes() {
+    try {
+      const res = await fetch(API_URL + '/viajes');
+      const viajes = await res.json();
+      if (viajes.length === 0) {
+        listaViajesDiv.innerHTML = '<p>No hay viajes publicados aún.</p>';
+        return;
+      }
+      listaViajesDiv.innerHTML = viajes.map(v => 
+        `<div class="viaje">
+          <p><strong>Origen:</strong> ${v.origen}</p>
+          <p><strong>Destino:</strong> ${v.destino}</p>
+          <p><strong>Fecha:</strong> ${new Date(v.fecha).toLocaleDateString()}</p>
+          <p><strong>Pasajeros disponibles:</strong> ${v.pasajeros}</p>
+          <p><strong>Publicado por:</strong> ${v.usuario}</p>
+          ${v.comentarios ? `<p><strong>Comentarios:</strong> ${v.comentarios}</p>` : ''}
+        </div>`
+      ).join('');
+    } catch (error) {
+      listaViajesDiv.innerHTML = `<p>Error cargando viajes: ${error.message}</p>`;
+    }
+  }
+
+  // Inicializar
+  cargarViajes();
+</script>
+
+</body>
+</html>
